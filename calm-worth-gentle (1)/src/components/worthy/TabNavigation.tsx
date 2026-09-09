@@ -47,7 +47,7 @@ const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange, s
         // Wings image icon - detailed feather wing illustration
         return (
           <img 
-            src="https://d64gsuwffb70l.cloudfront.net/6875c375b32d29dcca02e02a_1769207614647_94e30c74.webp" 
+            src="/images/crow-mark.webp" 
             alt="Crow" 
             width="26" 
             height="26" 

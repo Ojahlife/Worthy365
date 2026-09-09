@@ -36,15 +36,16 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [actualDuration, setActualDuration] = useState(durationSeconds);
   const [audioSource, setAudioSource] = useState<'static' | 'tts' | null>(null);
+  const [isLooping, setIsLooping] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Try to load static audio file first, then fall back to TTS
+
+  // Load independently hosted recorded audio.
   useEffect(() => {
     if (staticAudioUrl && !audioSrc && !isLoading) {
       loadStaticAudio(staticAudioUrl);
-    } else if (!staticAudioUrl && textToSpeak && !audioSrc && !isLoading) {
-      // No static file, go straight to TTS
-      generateAudio(textToSpeak);
+    } else if (!staticAudioUrl && !audioSrc && !isLoading) {
+      setError('Audio recording is not available');
     }
     
     return () => {
@@ -103,71 +104,8 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
     }
 
-    // None of the static files worked — fall back to TTS
-    console.log(`No static audio found for ${url}, falling back to TTS`);
-    if (textToSpeak) {
-      await generateAudio(textToSpeak);
-    } else {
-      setError('Audio file not found');
-    }
+    setError('Audio file not found');
     setIsLoading(false);
-  };
-
-
-  // Generate audio via TTS (fallback)
-  const generateAudio = async (text: string) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      // Use direct fetch for binary audio response (more reliable than supabase.functions.invoke for binary data)
-      const supabaseUrl = 'https://jyupwjwcvjvprimilrkx.databasepad.com';
-      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjkwOWE4MjdjLTRlYTYtNDU5ZS04M2Q1LTllMTQzNTA2YjliZiJ9.eyJwcm9qZWN0SWQiOiJqeXVwd2p3Y3ZqdnByaW1pbHJreCIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzY3MTI4MTcxLCJleHAiOjIwODI0ODgxNzEsImlzcyI6ImZhbW91cy5kYXRhYmFzZXBhZCIsImF1ZCI6ImZhbW91cy5jbGllbnRzIn0.Q0MhxG1ExvwmZACYnEUF9nt5KlvH9BC9NbR1tTgdapE';
-      
-      const response = await fetch(`${supabaseUrl}/functions/v1/text-to-speech`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseKey}`,
-          'apikey': supabaseKey,
-        },
-        body: JSON.stringify({ text: text.substring(0, 5000) }), // Truncate to avoid API limits
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('TTS error response:', response.status, errorData);
-        throw new Error(`Failed to generate audio (${response.status})`);
-      }
-
-      const contentType = response.headers.get('content-type');
-      
-      // If the response is JSON, it's an error
-      if (contentType?.includes('application/json')) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate audio');
-      }
-
-      // Get audio as blob
-      const audioBlob = await response.blob();
-      const url = URL.createObjectURL(audioBlob);
-      setAudioSrc(url);
-      setAudioSource('tts');
-      
-      // Create audio element to get actual duration
-      const audio = new Audio(url);
-      audio.addEventListener('loadedmetadata', () => {
-        if (audio.duration && !isNaN(audio.duration)) {
-          setActualDuration(audio.duration);
-        }
-      });
-      
-    } catch (err) {
-      console.error('Error generating audio:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate audio');
-    } finally {
-      setIsLoading(false);
-    }
   };
 
 
@@ -181,10 +119,22 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   const handleEnded = () => {
+    // When repeat is on, restart from the beginning and keep playing continuously
+    if (isLooping && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      setCurrentTime(0);
+      setProgress(0);
+      audioRef.current.play().catch(err => {
+        console.error('Error replaying audio:', err);
+        onPlayPause();
+      });
+      return;
+    }
     setCurrentTime(0);
     setProgress(0);
     onPlayPause(); // Stop playing
   };
+
 
   const handleLoadedMetadata = () => {
     if (audioRef.current && audioRef.current.duration) {
@@ -193,15 +143,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
   };
 
   const handleAudioError = () => {
-    // If static file fails to load/play, try TTS fallback
-    if (audioSource === 'static' && textToSpeak) {
-      console.log('Static audio failed to play, falling back to TTS');
-      setAudioSrc(null);
-      setAudioSource(null);
-      generateAudio(textToSpeak);
-    } else {
-      setError('Unable to play audio');
-    }
+    setError('Unable to play audio');
   };
 
   const formatTime = (seconds: number) => {
@@ -257,6 +199,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
         <audio
           ref={audioRef}
           src={audioSrc}
+          loop={isLooping}
           onTimeUpdate={handleTimeUpdate}
           onEnded={handleEnded}
           onLoadedMetadata={handleLoadedMetadata}
@@ -264,6 +207,7 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
           preload="metadata"
         />
       )}
+
 
       {/* Header */}
       <div className="p-5 pb-4">
@@ -449,7 +393,30 @@ const AudioPlayer: React.FC<AudioPlayerProps> = ({
             </svg>
           </button>
         </div>
+
+        {/* Repeat / continuous play toggle */}
+        <div className="flex justify-center mt-4">
+          <button
+            onClick={() => setIsLooping(!isLooping)}
+            aria-pressed={isLooping}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs border transition-colors ${
+              isLooping
+                ? 'bg-[#A8CBDA]/25 border-[#A8CBDA]/50 text-[#5C4A3D]'
+                : 'bg-transparent border-[#D4A574]/25 text-[#8B7355]/60 hover:text-[#8B7355]'
+            }`}
+            style={{ fontFamily: 'Georgia, serif' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="17 1 21 5 17 9"/>
+              <path d="M3 11V9a4 4 0 0 1 4-4h14"/>
+              <polyline points="7 23 3 19 7 15"/>
+              <path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+            </svg>
+            <span>{isLooping ? 'Repeat on — plays continuously' : 'Repeat off'}</span>
+          </button>
+        </div>
       </div>
+
 
       {/* Transcript toggle */}
       {transcript && (

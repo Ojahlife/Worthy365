@@ -11,6 +11,7 @@ import SavedView from './worthy/SavedView';
 import ListenView from './worthy/ListenView';
 import CrowMedicineView from './worthy/CrowMedicineView';
 import DoubtingView from './worthy/DoubtingView';
+import LeadGate from './worthy/LeadGate';
 import useSavedMessages from '@/hooks/useSavedMessages';
 
 const AppLayout: React.FC = () => {
@@ -18,6 +19,8 @@ const AppLayout: React.FC = () => {
   const [showArchive, setShowArchive] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showLeadGate, setShowLeadGate] = useState(false);
+  const [gateChecked, setGateChecked] = useState(false);
   const [showCrowMedicine, setShowCrowMedicine] = useState(false);
 
   const {
@@ -28,12 +31,20 @@ const AppLayout: React.FC = () => {
   } = useSavedMessages();
 
   useEffect(() => {
+    // Lead magnet gate must be passed before anything else
+    const hasCaptured = localStorage.getItem('worthy365_lead_captured');
+    if (!hasCaptured) {
+      setShowLeadGate(true);
+    }
+    setGateChecked(true);
+
     // Check if user has completed onboarding
     const hasOnboarded = localStorage.getItem('worthy365_onboarded');
     if (!hasOnboarded) {
       setShowOnboarding(true);
     }
   }, []);
+
 
   const handleNavigateToCrow = () => {
     setActiveTab('crow');
@@ -80,9 +91,18 @@ const AppLayout: React.FC = () => {
     }
   };
 
+  if (!gateChecked) {
+    return null;
+  }
+
+  if (showLeadGate) {
+    return <LeadGate onComplete={() => setShowLeadGate(false)} />;
+  }
+
   if (showOnboarding) {
     return <OnboardingScreen onComplete={() => setShowOnboarding(false)} />;
   }
+
 
   return (
     <div 

@@ -16,7 +16,7 @@ const CenterView: React.FC = () => {
 
 
   // Direct image URL - crow silhouette at golden hour provided by user
-  const crowImageUrl = 'https://d64gsuwffb70l.cloudfront.net/6875c375b32d29dcca02e02a_1769196581589_7f70ecf5.png';
+  const crowImageUrl = '/images/crow-art.png';
 
 
 
