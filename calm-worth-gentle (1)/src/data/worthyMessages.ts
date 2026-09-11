@@ -338,7 +338,7 @@ export const spokenAffirmations: SpokenAffirmation[] = [
 
 // Primary Crow Image for Today page - crow silhouette at golden hour provided by user
 export const primaryCrowImage = {
-  url: 'https://d64gsuwffb70l.cloudfront.net/6875c375b32d29dcca02e02a_1769196581589_7f70ecf5.png',
+  url: '/images/crow-art.png',
   alt: 'Crow silhouette at golden hour - wisdom, transition, and self-trust',
   description: 'A beautiful crow silhouette perched on a post against a warm golden sunset sky. This is the medicine of seeing clearly, of trusting your own vision, of presence and watchfulness.'
 };
@@ -346,12 +346,12 @@ export const primaryCrowImage = {
 // Crow imagery for rotating display
 export const crowImages = [
   {
-    url: 'https://d64gsuwffb70l.cloudfront.net/6875c375b32d29dcca02e02a_1769196581589_7f70ecf5.png',
+    url: '/images/crow-art.png',
     alt: 'Crow silhouette at golden hour - wisdom, transition, and self-trust',
     theme: 'trust'
   },
   {
-    url: 'https://d64gsuwffb70l.cloudfront.net/6875c375b32d29dcca02e02a_1769196581589_7f70ecf5.png',
+    url: '/images/crow-art.png',
     alt: 'Crow silhouette - presence and watchfulness',
     theme: 'presence'
   },
